@@ -93,7 +93,7 @@ If you replace 'sinceStart' by 'sinceInitS',
 it will usually hang after one second,
 since it doesn't reset after restarting the sawtooth.
 -}
-sinceStart :: (Monad m, Data time, TimeDomain time) => BehaviourF m time a (Diff time)
+sinceStart :: (Monad m, Data time, Finite time, TimeDomain time) => BehaviourF m time a (Diff time)
 sinceStart = absoluteS >>> proc time -> do
   startTime <- keepFirst -< time
   returnA                -< time `diffTime` startTime
@@ -148,6 +148,7 @@ clId = Control.Category.id
 --   of the input, with initial offset @v0@.
 integralFrom
   :: ( Monad m, VectorSpace v s
+     , Data v
      , s ~ Diff td)
   => v -> BehaviorF m td v v
 integralFrom v0 = proc v -> do
@@ -369,6 +370,8 @@ timer
   :: ( Monad m
      , TimeDomain td
      , Ord (Diff td)
+     , Data td
+     , Finite td
      )
   => Diff td
   -> BehaviorF (ExceptT () m) td a (Diff td)
@@ -382,6 +385,8 @@ timer_
   :: ( Monad m
      , TimeDomain td
      , Ord (Diff td)
+     , Data td
+     , Finite td
      )
   => Diff td
   -> BehaviorF (ExceptT () m) td a ()
@@ -393,6 +398,8 @@ scaledTimer
      , TimeDomain td
      , Fractional (Diff td)
      , Ord        (Diff td)
+     , Data td
+     , Finite td
      )
   => Diff td
   -> BehaviorF (ExceptT () m) td a (Diff td)
