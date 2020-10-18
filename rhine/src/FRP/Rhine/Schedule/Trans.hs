@@ -11,8 +11,11 @@ module FRP.Rhine.Schedule.Trans where
 -- dunai
 import Data.MonadicStreamFunction.InternalCore
 
+-- monad-schedule
+import Control.Monad.Schedule.Class
+import Control.Monad.Schedule.Trans
+
 -- rhine
-import Control.Monad.Schedule
 import FRP.Rhine.Clock
 import FRP.Rhine.Schedule
 
