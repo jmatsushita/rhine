@@ -21,6 +21,7 @@ import qualified Control.Monad.Trans.MSF.Reader as MSFReader
 import Data.MonadicStreamFunction.InternalCore
 
 -- rhine
+import Control.Monad.Event (evalEventT, EventT)
 import FRP.Rhine
 import FRP.Rhine.Reactimation.ClockErasure
 
@@ -47,8 +48,7 @@ glossEventSelectClock
   :: (Event -> Maybe a)
   -> GlossEventClock a
 glossEventSelectClock selector = SelectClock
-  { mainClock = GlossClock
-  , select = (>>= selector)
+  { select = (>>= selector)
   }
 
 -- | Tick on every event.
@@ -63,11 +63,12 @@ type GlossSimulationClock = SelectClock GlossClock ()
 glossSimulationClock :: GlossSimulationClock
 glossSimulationClock = SelectClock { .. }
   where
-    mainClock = GlossClock
     select (Just _event) = Nothing
     select Nothing        = Just ()
 
 -- * Signal networks
+
+type GlossClockEvent = (Float, Maybe (Maybe Event))
 
 {- |
 The type of a valid 'Rhine' that can be run by @gloss@,
@@ -97,7 +98,7 @@ myGlossRhine
   = myEventSubsystem @@ myEventClock >-- collect -@- glossSchedule --> mySim @@ glossSimulationClock
 @
 -}
-type GlossRhine a = Rhine GlossM (GlossCombinedClock a) () ()
+type GlossRhine a = Rhine (EventT GlossClockEvent GlossM) (GlossCombinedClock a) () ()
 
 {- | For most applications, it is sufficient to implement
 a single signal function
@@ -109,9 +110,9 @@ buildGlossRhine
   -> ClSF GlossM GlossSimulationClock [a] () -- ^ The 'ClSF' representing the game loop.
   -> GlossRhine a
 buildGlossRhine selector clsfSim
-  =   timeInfoOf tag @@ glossEventSelectClock selector
+  =   timeInfoOf tag   @@ glossEventSelectClock selector
   >-- collect
-  --> clsfSim        @@ glossSimulationClock
+  --> liftClSF clsfSim @@ glossSimulationClock
 
 -- * Reactimation
 
@@ -120,7 +121,7 @@ flowGlossCombined
   :: GlossSettings
   -> GlossRhine a -- ^ The @gloss@-compatible 'Rhine'.
   -> IO ()
-flowGlossCombined settings Rhine { .. } = flowGlossWithWorldMSF settings clock $ proc tick -> do
+flowGlossCombined settings Rhine { .. } = flowGlossWithWorldMSF settings clock $ morphS evalEventT $ proc tick -> do
   eraseClockSN 0 sn -< case tick of
     (_       , Left event) -> (0       , Left event, Just ())
     (diffTime, Right ()  ) -> (diffTime, Right ()  , Nothing)
