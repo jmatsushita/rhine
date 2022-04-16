@@ -1,6 +1,6 @@
 name:                rhine
 
-version:             0.6.0
+version:             0.7.3
 
 synopsis: Functional Reactive Programming with type-level clocks
 
