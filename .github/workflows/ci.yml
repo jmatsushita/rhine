@@ -37,3 +37,11 @@ jobs:
       - name: Cabal test
         run: |
           cabal test all --enable-tests --test-show-details=Always --project-file=cabal.project.${{ matrix.ghc }}
+  build-flake:
+    runs-on: ubuntu-latest
+    name: Nix Flake
+    steps:
+      - uses: actions/checkout@v2.4.0
+      - uses: cachix/install-nix-action@v15
+      - run: nix build
+      - run: nix flake check
