@@ -17,7 +17,7 @@ outputs = { self, nixpkgs, flake-utils, haskell-flake-utils, ... }@inputs:
       inherit self nixpkgs system;
 
       name = "rhine";
-      packageNames = ["rhine-gloss" "rhine-examples"];
+      packageNames = ["rhine-gloss" "rhine-terminal" "rhine-examples"];
 
     }
   );
