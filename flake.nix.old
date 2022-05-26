@@ -1,0 +1,118 @@
+{
+  description = "rhine";
+  nixConfig.bash-prompt = "\[rhine\]$ ";
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
+    flake-utils.inputs.nixpkgs.follows = "nixpkgs";
+
+    hls.url = "github:haskell/haskell-language-server";
+    hls.inputs.nixpkgs.follows = "nixpkgs";
+
+  };
+
+  outputs = { self, nixpkgs, flake-utils, hls /*, rhine*/ }:
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        pkgs = import nixpkgs {
+          inherit system;
+          config = { allowBroken = true; };
+          overlays = [];
+        };
+        rhine-src = builtins.fetchGit {
+          url = "https://github.com/jmatsushita/rhine.git";
+          ref = "ghc922";
+          rev = "cc8caaaa518accf1120df93998130fc9b624a44a";
+        };
+        essence-of-live-coding-src = pkgs.fetchFromGitHub {
+          owner = "turion";
+          repo = "essence-of-live-coding";
+          rev = "67fa15029028b29c89599c0cdbf64294ab96f291";
+          sha256 = "0q2901w1gh3y39ws2sm7h7sqbbk2j7kasy4k5xd0mk670bsd4i5c";
+        };
+        dunai-live-src = pkgs.fetchFromGitHub {
+          owner = "jmatsushita";
+          repo = "dunai-live";
+          rev = "e4f94fa83069488e5a32f9a4fc152cc7d65e1076";
+          sha256 = "sha256-ZoEYgF7VE0XD8qyhwNYg2jkyPDk/4nzvIktiyweH/bs=";
+        };
+        # Change GHC version here. To get the appropriate value, run:
+        #   nix-env -f "<nixpkgs>" -qaP -A haskell.compiler
+        # hp = pkgs.haskellPackages;
+        hp = pkgs.haskell.packages.ghc902.override {
+          overrides = self: super: (
+            if system == "aarch64-darwin"
+              then
+                let
+                  # https://github.com/NixOS/nixpkgs/issues/140774#issuecomment-976899227
+                  workaround140774 = hpkg: with pkgs.haskell.lib;
+                    overrideCabal hpkg (drv: {
+                      enableSeparateBinOutput = false;
+                    });
+                in
+                  {
+                    ghcid = workaround140774 super.ghcid;
+                  }
+              else {});
+        };
+
+        packageName ="rhine";
+
+        # Using this idiom https://magnus.therning.org/2022-03-13-simple-nix-flake-for-haskell-development.html
+        project = devTools :
+          hp.developPackage {
+            returnShellEnv = !(devTools == [ ]);
+            name = packageName;
+            root = ./.;
+            # Use source-overrides instead https://github.com/NixOS/cabal2nix/blob/master/doc/frequently-asked-questions.rst#how-to-specify-source-overrides-for-your-haskell-package
+            overrides = self: super: {
+              # Use callCabal2nix to override Haskell dependencies here
+              rhine = self.callCabal2nix "rhine" ./rhine {};
+              rhine-examples = self.callCabal2nix "rhine" ./rhine-examples {};
+              rhine-gloss = self.callCabal2nix "rhine-gloss" ./rhine-gloss {};
+              network = pkgs.haskell.lib.dontCheck (self.callHackage "network" "3.1.2.5" {});
+              retry = pkgs.haskell.lib.dontCheck (self.callHackage "retry" "0.9.2.0" {});
+              essence-of-live-coding = self.callCabal2nix "essence-of-live-coding" "${essence-of-live-coding-src}/essence-of-live-coding" {}; # FIXME Remove when this is stably on hackage & stackage
+              dunai-live = self.callCabal2nix "dunai-live" dunai-live-src {}; # FIXME Remove when this is stably on hackage & stackage
+              OpenGL = self.callCabal2nix "OpenGL" (builtins.fetchGit {
+                url = "https://github.com/haskell-opengl/OpenGL";
+                rev = "f7af8fe04b0f19c260a85c9ebcad612737cd7c8c";
+              }) {};
+              GLFW-b = pkgs.haskell.lib.dontCheck (self.callHackage "GLFW-b" "1.4.8.4" {});
+              gloss = pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.appendConfigureFlags (self.callHackage "gloss" "1.13.2.2" {}) ["-f-GLFW" "-fGLUT" "-fexplicitbackend"]);
+              # gloss = pkgs.haskell.lib.disableCabalFlag (pkgs.haskell.lib.enableCabalFlag ((self.callHackage "gloss" "1.13.2.2" {}).overrideAttrs (old: {
+              #   buildInputs = old.buildInputs ++ (with self; [
+              #     GLFW-b
+              #   ]);
+              # })) "GLFW") "GLUT";
+
+              # GLUT = pkgs.haskell.lib.dontCheck (self.callHackage "GLUT" "2.7.0.16" {});
+              # gloss = pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.appendConfigureFlags (self.callHackage "gloss" "1.13.2.2" {}) ["-f-GLFW" "-fGLUT" "-fexplicitbackend"]);
+
+              gloss-rendering = pkgs.haskell.lib.dontCheck (self.callHackage "gloss-rendering" "1.13.1.2" {});
+              vector-sized = pkgs.haskell.lib.dontCheck (self.callHackage "vector-sized" "1.4.4" {});
+            };
+            modifier = drv:
+              pkgs.haskell.lib.addBuildTools drv devTools;
+            };
+      in {
+
+        # Used by `nix build` & `nix run` (prod exe)
+        defaultPackage = project [];
+        # Used by `nix develop` (dev shell)
+        devShell = project (with hp; [
+          # Specify your build/dev dependencies here.
+          # cabal-fmt
+          cabal-install
+          ghcid
+          haskell-language-server
+          hls
+          hlint
+          fourmolu
+          pkgs.nixpkgs-fmt
+          pkgs.glfw
+        ]);
+
+      }
+    );
+}

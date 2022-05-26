@@ -39,9 +39,30 @@ jobs:
           cabal test all --enable-tests --test-show-details=Always --project-file=cabal.project.${{ matrix.ghc }}
   build-flake:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ghc:
+          - "ghc884"
+          - "ghc8107"
+          - "ghc902"
+          - "ghc922"
     name: Nix Flake
     steps:
       - uses: actions/checkout@v2.4.0
       - uses: cachix/install-nix-action@v15
       - run: nix build
       - run: nix flake check
+      # https://github.com/con-kitty/categorifier/pull/66/files#diff-b803fcb7f17ed9235f1e5cb1fcd2f5d3b2838429d4368ae4c57ce4436577f03fR39
+      - name: Cat flake.nix
+        run: cat flake.nix
+      # - name: dry-run
+      #   run: nix build --dry-run --print-build-logs .#${{ matrix.ghc }}.rhine
+      - name: build rhine
+        run: nix build --print-build-logs -j1 .#${{ matrix.ghc }}.rhine
+      - name: build rhine-examples
+        run: nix build --print-build-logs -j1 .#${{ matrix.ghc }}.rhine-examples
+      - name: build rhine-gloss
+        run: nix build --print-build-logs -j1 .#${{ matrix.ghc }}.rhine-gloss
+      - name: build rhine-terminal
+        run: nix build --print-build-logs -j1 .#${{ matrix.ghc }}.rhine-terminal

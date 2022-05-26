@@ -1,1 +1,5 @@
-packages: */*.cabal
+packages:
+  rhine
+  rhine-examples
+  rhine-gloss
+  rhine-terminal

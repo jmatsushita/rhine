@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                rhine-gloss
-version:             0.7.1
+version:             0.8.0
 synopsis:            Gloss backend for Rhine
 description:
   This package provides a simple wrapper for the `gloss` library,
@@ -36,9 +36,9 @@ library
     FRP.Rhine.Gloss.IO
     FRP.Rhine.Gloss.Pure
     FRP.Rhine.Gloss.Pure.Combined
-  build-depends:       base         >= 4.11 && < 4.16
+  build-depends:       base         >= 4.11 && < 4.17
                      , transformers >= 0.5
-                     , rhine        == 0.7.1
+                     , rhine        >= 0.7.1
                      , dunai        >= 0.6
                      , gloss        >= 1.12
   hs-source-dirs:      src

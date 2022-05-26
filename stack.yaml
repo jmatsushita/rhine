@@ -1,5 +1,0 @@
-resolver: lts-15.5
-packages:
-- rhine
-- rhine-examples
-- rhine-gloss
